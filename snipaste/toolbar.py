@@ -4,7 +4,9 @@ from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QButtonGroup,
     QColorDialog, QFrame
 )
+from snipaste.icons import get_svg_icon
 
+# Iconic Snipaste Palette Colors
 PALETTE_COLORS = [
     "#FF3B30",  # Red
     "#FF9500",  # Orange
@@ -13,8 +15,8 @@ PALETTE_COLORS = [
     "#007AFF",  # Blue
     "#5856D6",  # Purple
     "#AF52DE",  # Magenta
+    "#FFFFFF",  # White
     "#000000",  # Black
-    "#FFFFFF"   # White
 ]
 
 STROKE_WIDTHS = [2, 4, 8, 14]
@@ -29,19 +31,27 @@ class SubPaletteBar(QWidget):
         self.current_color = QColor(PALETTE_COLORS[0])
         self.current_width = STROKE_WIDTHS[1]
 
+        self.setStyleSheet("""
+            QWidget {
+                background-color: rgba(32, 35, 42, 250);
+                border: 1px solid rgba(75, 82, 98, 200);
+                border-radius: 6px;
+            }
+        """)
+
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(6, 4, 6, 4)
+        layout.setContentsMargins(8, 4, 8, 4)
         layout.setSpacing(6)
 
         # Color buttons
-        self.color_group = QButtonGroup(self)
         for hex_c in PALETTE_COLORS:
             btn = QPushButton()
             btn.setFixedSize(18, 18)
+            border_style = "border: 1px solid #777;" if hex_c != "#FFFFFF" else "border: 1px solid #BBB;"
             btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {hex_c};
-                    border: 1px solid #555;
+                    {border_style}
                     border-radius: 9px;
                 }}
                 QPushButton:hover {{
@@ -56,20 +66,20 @@ class SubPaletteBar(QWidget):
         # Width buttons (sizes 2, 4, 8, 14)
         for w in STROKE_WIDTHS:
             btn = QPushButton()
-            btn.setFixedSize(18, 18)
-            circle_r = max(2, min(14, w))
+            btn.setFixedSize(20, 20)
+            dot_size = max(4, min(14, w))
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    background-color: #444;
-                    border: 1px solid #666;
-                    border-radius: 9px;
+                    background-color: #2D313A;
+                    border: 1px solid #4C5364;
+                    border-radius: 10px;
                 }}
                 QPushButton:hover {{
-                    background-color: #666;
-                    border-color: white;
+                    background-color: #3F4756;
+                    border-color: #007AFF;
                 }}
             """)
-            btn.setToolTip(f"粗细: {w}px")
+            btn.setToolTip(f"线条粗细: {w}px")
             btn.clicked.connect(lambda _, width=w: self.sig_width_changed.emit(width))
             layout.addWidget(btn)
 
@@ -82,7 +92,7 @@ class PaintBar(QWidget):
     """
     Floating annotation toolbar (Recreation of Snipaste AVPaintBar).
     """
-    sig_tool_changed = pyqtSignal(str)   # rect, ellipse, arrow, line, pencil, marker, text, number, mosaic, blur, eraser
+    sig_tool_changed = pyqtSignal(str)
     sig_undo = pyqtSignal()
     sig_redo = pyqtSignal()
     sig_translate = pyqtSignal()
@@ -96,150 +106,167 @@ class PaintBar(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowFlags(Qt.WindowType.SubWindow | Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.active_tool = None
         self._init_ui()
 
     def _init_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(2)
+        main_layout.setSpacing(4)
 
         # Main Toolbar Frame
         self.bar_frame = QFrame()
         self.bar_frame.setStyleSheet("""
-            QFrame {
-                background-color: rgba(30, 32, 40, 245);
-                border: 1px solid rgba(80, 85, 100, 180);
+            QFrame#mainBar {
+                background-color: rgba(30, 33, 40, 248);
+                border: 1px solid rgba(80, 88, 105, 220);
                 border-radius: 6px;
             }
             QPushButton {
                 background-color: transparent;
-                color: #EEE;
                 border: 1px solid transparent;
                 border-radius: 4px;
-                padding: 4px 6px;
-                font-size: 13px;
-                min-width: 24px;
-                min-height: 24px;
+                padding: 3px;
+                min-width: 26px;
+                min-height: 26px;
+                max-width: 26px;
+                max-height: 26px;
             }
             QPushButton:hover {
-                background-color: rgba(255, 255, 255, 0.15);
-                border-color: rgba(255, 255, 255, 0.3);
+                background-color: rgba(255, 255, 255, 0.12);
+                border-color: rgba(255, 255, 255, 0.2);
             }
             QPushButton:checked {
-                background-color: #1E90FF;
-                color: white;
+                background-color: #007AFF;
+                border-color: #0062CC;
             }
         """)
+        self.bar_frame.setObjectName("mainBar")
         bar_layout = QHBoxLayout(self.bar_frame)
-        bar_layout.setContentsMargins(4, 4, 4, 4)
+        bar_layout.setContentsMargins(5, 5, 5, 5)
         bar_layout.setSpacing(2)
 
         # Drawing Tool Buttons
         self.tools = [
-            ("rect", "▭", "矩形"),
-            ("ellipse", "◯", "椭圆"),
-            ("arrow", "➔", "箭头"),
-            ("line", "╱", "折线/直线"),
-            ("pencil", "✎", "画笔"),
-            ("marker", "🖌", "荧光记号笔"),
-            ("text", "T", "文本"),
-            ("number", "①", "序号标号"),
-            ("mosaic", "▦", "马赛克"),
-            ("blur", "≋", "高斯模糊"),
-            ("eraser", "⌫", "橡皮擦")
+            ("rect", "矩形 (1)"),
+            ("ellipse", "椭圆 (2)"),
+            ("arrow", "箭头 (3)"),
+            ("line", "折线/直线 (4)"),
+            ("pencil", "画笔 (5)"),
+            ("marker", "记号笔 (6)"),
+            ("text", "文本 (7)"),
+            ("number", "序号标号 (8)"),
+            ("mosaic", "马赛克脱敏 (9)"),
+            ("blur", "高斯模糊 (0)"),
+            ("eraser", "橡皮擦 (E)")
         ]
 
         self.tool_buttons = {}
-        for tool_id, icon_text, tip in self.tools:
-            btn = QPushButton(icon_text)
+        for tool_id, tip in self.tools:
+            btn = QPushButton()
+            btn.setIcon(get_svg_icon(tool_id, "#DCE0E8"))
+            btn.setIconSize(QSize(18, 18))
             btn.setCheckable(True)
             btn.setToolTip(tip)
             btn.clicked.connect(lambda checked, t=tool_id: self._select_tool(t))
             bar_layout.addWidget(btn)
             self.tool_buttons[tool_id] = btn
 
-        bar_layout.addSpacing(6)
+        bar_layout.addSpacing(4)
 
         # Separator line
         sep1 = QFrame()
         sep1.setFrameShape(QFrame.Shape.VLine)
-        sep1.setStyleSheet("color: #555;")
+        sep1.setStyleSheet("color: #4A5060; max-width: 1px;")
         bar_layout.addWidget(sep1)
 
-        bar_layout.addSpacing(6)
+        bar_layout.addSpacing(4)
 
         # Undo / Redo
-        self.btn_undo = QPushButton("↶")
+        self.btn_undo = QPushButton()
+        self.btn_undo.setIcon(get_svg_icon("undo", "#DCE0E8"))
+        self.btn_undo.setIconSize(QSize(18, 18))
         self.btn_undo.setToolTip("撤销 (Ctrl+Z)")
         self.btn_undo.clicked.connect(self.sig_undo.emit)
         bar_layout.addWidget(self.btn_undo)
 
-        self.btn_redo = QPushButton("↷")
+        self.btn_redo = QPushButton()
+        self.btn_redo.setIcon(get_svg_icon("redo", "#DCE0E8"))
+        self.btn_redo.setIconSize(QSize(18, 18))
         self.btn_redo.setToolTip("重做 (Ctrl+Y)")
         self.btn_redo.clicked.connect(self.sig_redo.emit)
         bar_layout.addWidget(self.btn_redo)
 
-        bar_layout.addSpacing(6)
+        bar_layout.addSpacing(4)
 
         sep2 = QFrame()
         sep2.setFrameShape(QFrame.Shape.VLine)
-        sep2.setStyleSheet("color: #555;")
+        sep2.setStyleSheet("color: #4A5060; max-width: 1px;")
         bar_layout.addWidget(sep2)
 
-        bar_layout.addSpacing(6)
+        bar_layout.addSpacing(4)
 
-        # Real-time Translation Button (New Feature!)
-        self.btn_translate = QPushButton("🌐")
+        # Real-time Translation Button (Signature Feature)
+        self.btn_translate = QPushButton()
+        self.btn_translate.setIcon(get_svg_icon("translate", "#00A3FF"))
+        self.btn_translate.setIconSize(QSize(19, 19))
         self.btn_translate.setToolTip("截图实时翻译 (T)")
         self.btn_translate.setStyleSheet("""
             QPushButton {
-                color: #4BB5FF;
-                font-weight: bold;
+                background-color: rgba(0, 122, 255, 0.15);
+                border: 1px solid rgba(0, 122, 255, 0.4);
             }
             QPushButton:hover {
-                background-color: rgba(75, 181, 255, 0.25);
+                background-color: rgba(0, 122, 255, 0.35);
+                border-color: #00A3FF;
             }
         """)
         self.btn_translate.clicked.connect(self.sig_translate.emit)
         bar_layout.addWidget(self.btn_translate)
 
-        # Pin (贴图 F3)
-        self.btn_pin = QPushButton("📌")
+        # Pin (贴图 F3 / Ctrl+T)
+        self.btn_pin = QPushButton()
+        self.btn_pin.setIcon(get_svg_icon("pin", "#DCE0E8"))
+        self.btn_pin.setIconSize(QSize(18, 18))
         self.btn_pin.setToolTip("贴图到屏幕 (F3 / Ctrl+T)")
         self.btn_pin.clicked.connect(self.sig_pin.emit)
         bar_layout.addWidget(self.btn_pin)
 
         # Save to File (Ctrl+S)
-        self.btn_save = QPushButton("💾")
+        self.btn_save = QPushButton()
+        self.btn_save.setIcon(get_svg_icon("save", "#DCE0E8"))
+        self.btn_save.setIconSize(QSize(18, 18))
         self.btn_save.setToolTip("保存图片 (Ctrl+S)")
         self.btn_save.clicked.connect(self.sig_save.emit)
         bar_layout.addWidget(self.btn_save)
 
-        # Copy to Clipboard (Ctrl+C / Enter)
-        self.btn_copy = QPushButton("✓")
-        self.btn_copy.setToolTip("复制到剪贴板 (Enter / Ctrl+C)")
+        # Copy to Clipboard (Ctrl+C / Enter) - Iconic Green Button
+        self.btn_copy = QPushButton()
+        self.btn_copy.setIcon(get_svg_icon("done", "#FFFFFF"))
+        self.btn_copy.setIconSize(QSize(18, 18))
+        self.btn_copy.setToolTip("完成截图并复制 (Enter / Ctrl+C)")
         self.btn_copy.setStyleSheet("""
             QPushButton {
-                background-color: #28A745;
-                font-weight: bold;
+                background-color: #22C55E;
+                border: 1px solid #16A34A;
             }
             QPushButton:hover {
-                background-color: #34C759;
+                background-color: #16A34A;
             }
         """)
         self.btn_copy.clicked.connect(self.sig_copy.emit)
         bar_layout.addWidget(self.btn_copy)
 
         # Cancel / Close (Esc)
-        self.btn_close = QPushButton("✕")
+        self.btn_close = QPushButton()
+        self.btn_close.setIcon(get_svg_icon("close", "#FF5C5C"))
+        self.btn_close.setIconSize(QSize(18, 18))
         self.btn_close.setToolTip("退出截图 (Esc)")
         self.btn_close.setStyleSheet("""
-            QPushButton {
-                color: #FF5555;
-            }
             QPushButton:hover {
-                background-color: rgba(255, 85, 85, 0.2);
+                background-color: rgba(239, 68, 68, 0.25);
+                border-color: #EF4444;
             }
         """)
         self.btn_close.clicked.connect(self.sig_close.emit)
@@ -265,7 +292,6 @@ class PaintBar(QWidget):
             self.active_tool = tool_id
             for tid, btn in self.tool_buttons.items():
                 btn.setChecked(tid == tool_id)
-            # Show sub-palette for non-eraser/mosaic tools if needed
             self.sub_palette.setVisible(tool_id not in ("eraser", "mosaic", "blur"))
             self.sig_tool_changed.emit(tool_id)
         self.adjustSize()
@@ -275,15 +301,12 @@ class PaintBar(QWidget):
         self.adjustSize()
         w, h = self.width(), self.height()
 
-        # By default, put toolbar 8px below bottom-right of selection rect
         x = target_rect.right() - w
         y = target_rect.bottom() + 8
 
-        # If too close to screen bottom, flip to top
         if y + h > screen_rect.bottom() - 10:
             y = target_rect.top() - h - 8
 
-        # Keep within screen horizontal bounds
         x = max(screen_rect.left() + 10, min(x, screen_rect.right() - w - 10))
         y = max(screen_rect.top() + 10, min(y, screen_rect.bottom() - h - 10))
 

@@ -12,6 +12,7 @@ class MagnifierHUD(QWidget):
         super().__init__(parent)
         self.setWindowFlags(Qt.WindowType.SubWindow | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         self.zoom = 8             # Zoom factor per pixel
         self.grid_size = 17       # 17x17 pixel region sampled (odd number for center pixel)
@@ -75,12 +76,12 @@ class MagnifierHUD(QWidget):
             return
 
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
         # Background card
-        painter.setBrush(QBrush(QColor(30, 30, 35, 240)))
-        painter.setPen(QPen(QColor(100, 100, 110), 1))
-        painter.drawRoundedRect(0, 0, self.width() - 1, self.height() - 1, 6, 6)
+        painter.setBrush(QBrush(QColor(26, 29, 36, 245)))
+        painter.setPen(QPen(QColor(60, 68, 85), 1))
+        painter.drawRoundedRect(0, 0, self.width() - 1, self.height() - 1, 8, 8)
 
         # 1. Draw magnified pixel grid
         grid_pixel_size = 8

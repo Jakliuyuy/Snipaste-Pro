@@ -461,41 +461,55 @@ class SnipperWindow(QWidget):
 
         painter = QPainter(self)
 
-        # 1. Draw full screen capture
+        # 1. Draw full screen capture pristine pixels
         painter.drawPixmap(0, 0, self.screen_pixmap)
 
-        # 2. Draw dimmed overlay outside selection
         dim_opacity = get_config().get_int("Snip", "dim_opacity", 140)
         dim_color = QColor(0, 0, 0, dim_opacity)
+        w = self.width()
+        h = self.height()
 
         if self.state == STATE_IDLE:
-            # If a window is detected under cursor, highlight it
+            # If a window is detected under cursor, highlight it without erasing its pixels
             if self.detected_rect:
-                painter.fillRect(self.rect(), dim_color)
-                # Cut out detected window rectangle
-                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
-                painter.fillRect(self.detected_rect, Qt.GlobalColor.transparent)
-                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+                dr = self.detected_rect
+                if dr.top() > 0:
+                    painter.fillRect(0, 0, w, dr.top(), dim_color)
+                if dr.bottom() < h - 1:
+                    painter.fillRect(0, dr.bottom() + 1, w, h - (dr.bottom() + 1), dim_color)
+                if dr.left() > 0:
+                    painter.fillRect(0, dr.top(), dr.left(), dr.height(), dim_color)
+                if dr.right() < w - 1:
+                    painter.fillRect(dr.right() + 1, dr.top(), w - (dr.right() + 1), dr.height(), dim_color)
 
-                # Draw crisp bounding box
-                painter.setPen(QPen(QColor(30, 144, 255), 2))
+                # Draw crisp Snipaste bounding box
+                painter.setPen(QPen(QColor(0, 122, 255), 2))
                 painter.setBrush(Qt.BrushStyle.NoBrush)
-                painter.drawRect(self.detected_rect)
+                painter.drawRect(dr)
             else:
                 # Dim screen slightly
-                painter.fillRect(self.rect(), QColor(0, 0, 0, 40))
+                painter.fillRect(self.rect(), QColor(0, 0, 0, 45))
+
+            # Fullscreen crosshairs extending across entire screen
+            painter.setPen(QPen(QColor(0, 122, 255, 160), 1, Qt.PenStyle.DashLine))
+            painter.drawLine(0, self.current_pos.y(), w, self.current_pos.y())
+            painter.drawLine(self.current_pos.x(), 0, self.current_pos.x(), h)
 
         elif self.state in (STATE_DRAGGING, STATE_SELECTED, STATE_RESIZING):
             norm_rect = self.selected_rect.normalized()
 
-            # Dim everything except selected_rect
-            painter.fillRect(self.rect(), dim_color)
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
-            painter.fillRect(norm_rect, Qt.GlobalColor.transparent)
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+            # Dim ONLY the 4 regions outside norm_rect (never clear or paint over norm_rect!)
+            if norm_rect.top() > 0:
+                painter.fillRect(0, 0, w, norm_rect.top(), dim_color)
+            if norm_rect.bottom() < h - 1:
+                painter.fillRect(0, norm_rect.bottom() + 1, w, h - (norm_rect.bottom() + 1), dim_color)
+            if norm_rect.left() > 0:
+                painter.fillRect(0, norm_rect.top(), norm_rect.left(), norm_rect.height(), dim_color)
+            if norm_rect.right() < w - 1:
+                painter.fillRect(norm_rect.right() + 1, norm_rect.top(), w - (norm_rect.right() + 1), norm_rect.height(), dim_color)
 
             # Draw selection border
-            border_color = QColor(get_config().get("Snip", "border_color", "#1E90FF"))
+            border_color = QColor(get_config().get("Snip", "border_color", "#007AFF"))
             border_width = get_config().get_int("Snip", "border_width", 2)
             painter.setPen(QPen(border_color, border_width))
             painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -516,20 +530,22 @@ class SnipperWindow(QWidget):
             if self.state == STATE_SELECTED:
                 painter.setPen(QPen(border_color, 1))
                 painter.setBrush(QBrush(Qt.GlobalColor.white))
-                for h in self._get_handles_rects():
-                    painter.drawRect(h)
+                for handle_rect in self._get_handles_rects():
+                    painter.drawRect(handle_rect)
 
-            # 5. Draw size badge: "W x H (X, Y)"
+            # 5. Draw size badge: "W × H (X, Y)"
             badge_text = f"{norm_rect.width()} × {norm_rect.height()}"
             font = QFont("Segoe UI", 9)
             font.setBold(True)
             painter.setFont(font)
-            badge_w, badge_h = 100, 22
+            badge_w, badge_h = 104, 24
             badge_x = norm_rect.left()
             badge_y = norm_rect.top() - badge_h - 4
             if badge_y < 10:
-                badge_y = norm_rect.top() + 4
-            painter.fillRect(badge_x, badge_y, badge_w, badge_h, QColor(20, 20, 25, 220))
+                badge_y = norm_rect.top() + 6
+            painter.setPen(QPen(QColor(55, 62, 75), 1))
+            painter.setBrush(QBrush(QColor(22, 25, 32, 235)))
+            painter.drawRoundedRect(badge_x, badge_y, badge_w, badge_h, 4, 4)
             painter.setPen(QPen(Qt.GlobalColor.white))
             painter.drawText(QRect(badge_x, badge_y, badge_w, badge_h), Qt.AlignmentFlag.AlignCenter, badge_text)
 

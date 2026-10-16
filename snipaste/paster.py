@@ -201,13 +201,17 @@ class PasterWindow(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
 
-        # Draw drop shadow / border
+        # Draw pixmap
         rect = self.rect()
         painter.drawPixmap(rect, self.current_pixmap)
 
-        # If click-through, render faint border indicator
+        # Draw crisp 1px border so white images on white backgrounds are distinct
+        painter.setPen(QPen(QColor(120, 125, 135, 90), 1))
+        painter.drawRect(0, 0, self.width() - 1, self.height() - 1)
+
+        # If click-through, render blue indicator outline
         if self.is_click_through:
-            painter.setPen(QColor(30, 144, 255, 120))
+            painter.setPen(QPen(QColor(0, 122, 255, 180), 2))
             painter.drawRect(0, 0, self.width() - 1, self.height() - 1)
 
     def _show_context_menu(self, global_pos: QPoint):
