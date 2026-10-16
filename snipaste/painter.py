@@ -1,7 +1,7 @@
 import math
 from PyQt6.QtCore import Qt, QPoint, QRect, QLineF
 from PyQt6.QtGui import (
-    QPainter, QColor, QPen, QBrush, QFont, QPainterPath, QImage, QPolygonF
+    QPainter, QColor, QPen, QBrush, QFont, QPainterPath, QImage, QPolygon
 )
 from snipaste.utils import apply_mosaic_to_image, apply_blur_to_image
 
@@ -81,7 +81,7 @@ class ArrowItem(AnnotationItem):
             int(self.end.y() - arrow_len * math.sin(angle + arrow_angle))
         )
 
-        arrow_poly = QPolygonF([self.end, p1, p2])
+        arrow_poly = QPolygon([self.end, p1, p2])
         painter.setBrush(QBrush(self.color))
         painter.drawPolygon(arrow_poly)
 
@@ -99,9 +99,10 @@ class PencilItem(AnnotationItem):
         painter.setPen(pen)
 
         path = QPainterPath()
-        path.moveTo(self.points[0])
+        p0 = self.points[0]
+        path.moveTo(float(p0.x()), float(p0.y()))
         for p in self.points[1:]:
-            path.lineTo(p)
+            path.lineTo(float(p.x()), float(p.y()))
         painter.drawPath(path)
 
 class MarkerItem(AnnotationItem):
@@ -119,9 +120,10 @@ class MarkerItem(AnnotationItem):
         painter.setPen(pen)
 
         path = QPainterPath()
-        path.moveTo(self.points[0])
+        p0 = self.points[0]
+        path.moveTo(float(p0.x()), float(p0.y()))
         for p in self.points[1:]:
-            path.lineTo(p)
+            path.lineTo(float(p.x()), float(p.y()))
         painter.drawPath(path)
 
 class TextItem(AnnotationItem):

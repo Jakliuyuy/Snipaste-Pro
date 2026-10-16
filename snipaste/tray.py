@@ -1,6 +1,7 @@
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor
+from PyQt6.QtCore import Qt, QPoint, pyqtSignal
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QPolygon
 from PyQt6.QtWidgets import QSystemTrayIcon, QMenu, QApplication
+from snipaste.utils import get_asset_path
 
 class TrayManager(QSystemTrayIcon):
     """
@@ -21,7 +22,13 @@ class TrayManager(QSystemTrayIcon):
         self.activated.connect(self._on_activated)
 
     def _create_snipaste_icon(self) -> QIcon:
-        """Draws clean Snipaste pin/snip badge icon."""
+        """Loads official icon or draws clean Snipaste pin/snip badge icon."""
+        icon_file = get_asset_path("icon.ico")
+        if icon_file.exists():
+            icon = QIcon(str(icon_file))
+            if not icon.isNull():
+                return icon
+
         pixmap = QPixmap(32, 32)
         pixmap.fill(Qt.GlobalColor.transparent)
         painter = QPainter(pixmap)
@@ -36,7 +43,8 @@ class TrayManager(QSystemTrayIcon):
         painter.setPen(QColor(255, 255, 255))
         painter.setBrush(QColor(255, 255, 255))
         painter.drawRect(8, 8, 16, 12)
-        painter.drawPolygon([QPainter.drawPolygon and None or (16, 20), (12, 26), (20, 26)])
+        poly = QPolygon([QPoint(16, 26), QPoint(12, 20), QPoint(20, 20)])
+        painter.drawPolygon(poly)
         painter.end()
 
         return QIcon(pixmap)

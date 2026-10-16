@@ -3,7 +3,7 @@ import argparse
 from pathlib import Path
 from PyQt6.QtCore import QObject, QPoint, QRect, Qt
 from PyQt6.QtGui import (
-    QGuiApplication, QPixmap, QImage, QPainter, QColor, QFont
+    QGuiApplication, QPixmap, QImage, QPainter, QColor, QFont, QCursor, QPen
 )
 from PyQt6.QtWidgets import QApplication
 
