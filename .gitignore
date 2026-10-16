@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C/C++ build artifacts
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+
+# PyInstaller / Distribution
+build/
+dist/
+*.spec
+*.zip
+extracted/
+/tmp/
+
+# Virtual environment
+venv/
+.venv/
+env/
+ENV/
+
+# IDE & Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+test_translated_output.png
